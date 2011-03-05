@@ -1,0 +1,83 @@
+
+/**
+ * Module dependencies.
+ */
+
+var express = require('express')
+  , winston = require('winston')
+  , pkg = require('../package.json')
+
+var env = process.env.NODE_ENV || 'development'
+
+module.exports = function (app, config) {
+
+  app.set('showStackError', true)
+
+  // should be placed before express.static
+  app.use(express.compress({
+    filter: function (req, res) {
+      return /json|text|javascript|css/.test(res.getHeader('Content-Type'))
+    },
+    level: 9
+  }))
+
+  app.use(express.favicon())
+  app.use(express.static(config.root + '/public'))
+
+  // Logging
+  // Use winston on production
+  var log
+  if (env !== 'development') {
+    log = {
+      stream: {
+        write: function (message, encoding) {
+          winston.info(message)
+        }
+      }
+    }
+  } else {
+    log = 'dev'
+  }
+  // Don't log during tests
+  if (env !== 'test') app.use(express.logger(log))
+
+  // set views path, template engine and default layout
+  //app.set('views', config.root + '/app/views')
+  //app.set('view engine', 'jade')
+
+  app.configure(function () {
+    // expose package.json to views
+    app.use(function (req, res, next) {
+      res.locals.pkg = pkg
+      next()
+    })
+
+    // cookieParser should be above session
+    app.use(express.cookieParser())
+
+    // bodyParser should be above methodOverride
+    app.use(express.bodyParser())
+    app.use(express.methodOverride())
+
+    // routes should be at the last
+    app.use(app.router)
+
+    // assume "not found" in the error msgs
+    // is a 404. this is somewhat silly, but
+    // valid, you can do whatever you like, set
+    // properties, use instanceof etc.
+    app.use(function(err, req, res, next){
+      res.status(500).send({ error: err })
+    })
+
+    // assume 404 since no middleware responded
+    app.use(function(req, res, next){
+      res.status(404).send({ error: err })
+    })
+  })
+
+  // development env config
+  app.configure('development', function () {
+    app.locals.pretty = true
+  })
+}
