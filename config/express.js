@@ -71,7 +71,7 @@ module.exports = function (app, config) {
     })
 
     // assume 404 since no middleware responded
-    app.use(function(req, res, next){
+    app.use(function(err, req, res, next){
       res.status(404).send({ error: err })
     })
   })
